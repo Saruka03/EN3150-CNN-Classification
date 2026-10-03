@@ -1,6 +1,5 @@
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow import keras  # type: ignore[import-not-found]
+from tensorflow.keras import layers  # type: ignore[import-not-found]
 
 # -------------------------------------------------------------------------
 # Model configuration
