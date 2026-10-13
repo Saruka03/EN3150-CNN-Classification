@@ -218,6 +218,3 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Project generated files
-data/processed/
-models/
-results/
