@@ -12,6 +12,7 @@ This module contains reusable functions for:
 import numpy as np
 from tensorflow import keras
 from sklearn.model_selection import train_test_split
+from pathlib import Path
 
 
 # -------------------------------------------------------------------
@@ -108,7 +109,7 @@ def preprocess_dataset(
     y_val,
     y_test
 ):
-    
+
     # Normalize images
     X_train = normalize_images(X_train)
     X_val = normalize_images(X_val)
@@ -127,3 +128,33 @@ def preprocess_dataset(
         y_val,
         y_test
     )
+
+
+if __name__ == "__main__":
+    # Ensure the output directory exists
+    output_dir = Path("data/processed")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Loading Fashion-MNIST dataset...")
+    x_train, y_train, x_test, y_test = load_fashion_mnist()
+
+    print("Combining dataset splits...")
+    X, y = combine_dataset(x_train, y_train, x_test, y_test)
+
+    print("Performing 70/15/15 stratified split...")
+    X_train, X_val, X_test, y_train, y_val, y_test = split_dataset(X, y)
+
+    print("Running preprocessing pipeline (normalization & channel expansion)...")
+    X_train, X_val, X_test, y_train, y_val, y_test = preprocess_dataset(
+        X_train, X_val, X_test, y_train, y_val, y_test
+    )
+
+    # Save to .npz archive
+    output_path = output_dir / "fashion_mnist_processed.npz"
+    np.savez(
+        output_path,
+        x_train=X_train, y_train=y_train,
+        x_val=X_val, y_val=y_val,
+        x_test=X_test, y_test=y_test
+    )
+    print(f"Successfully generated and saved: {output_path}")
