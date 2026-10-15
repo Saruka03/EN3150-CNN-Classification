@@ -1,0 +1,24 @@
+{
+  "model": "Model B \u2014 Lightweight CNN (Depthwise Separable Convolutions)",
+  "input_shape": [
+    28,
+    28,
+    1
+  ],
+  "train_samples": 49000,
+  "validation_samples": 10500,
+  "test_samples": 10500,
+  "trainable_parameters": 4354,
+  "total_parameters": 4738,
+  "estimated_float32_weight_size_kb": 18.5078125,
+  "epochs_completed": 25,
+  "training_seconds": 187.8955788000021,
+  "seconds_per_epoch": 7.515823152000085,
+  "test_loss": 0.29348742961883545,
+  "test_accuracy": 0.8909523809523809,
+  "macro_precision": 0.8901751565471538,
+  "macro_recall": 0.8909523809523809,
+  "learning_rate": 0.001,
+  "batch_size": 128,
+  "optimizer": "Adam"
+}
