@@ -1,2 +1,2 @@
-Model,Trainable Parameters,Model Size (KB),Training Time per Epoch (s),Test Accuracy (%),Weighted Precision,Weighted Recall
-Model A - Standard CNN,60874,757.8955078125,30.288012290000914,90.0857150554657,0.9010299002337566,0.9008571428571429
+Model,Total Parameters,Model Size (KB),Model Size (MB),Training Time per Epoch (s),Test Loss,Test Accuracy (%),Weighted Precision,Weighted Recall,Macro Precision,Macro Recall
+Model A - Standard CNN,60874,757.8955078125,0.7401323318481445,17.17231043577194,0.3855389356613159,89.5809531211853,0.8962663272306651,0.8958095238095238,0.8962663272306651,0.8958095238095238
