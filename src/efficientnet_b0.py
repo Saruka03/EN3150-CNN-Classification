@@ -1,28 +1,18 @@
 """
 Standalone Python script converted from the corresponding EN3150 Assignment 03 notebook.
-Run from the repository root so data/processed/fashion_mnist_processed.npz is found.
+Run from the repository root or inside 'notebooks/' so data/processed/fashion_mnist_processed.npz is found.
 """
 
-# # EN3150 Assignment 03 — SOTA Fine-Tuning
-# ## Fashion-MNIST transfer learning
+# # EN3150 Assignment 03 — SOTA Model 2: EfficientNetB0
+# ## Fashion-MNIST Transfer Learning
 #
-# This notebook reuses the **shared preprocessed dataset** at `data/processed/fashion_mnist_processed.npz`. It does not silently download/re-split the original dataset. If the archive uses different key names or stores a different schema, the dataset inspection cell will explain what needs adjusting.
-#
-# Assignment alignment:
-# - Same 70% / 15% / 15% data splits as the custom CNNs.
-# - Maximum input resolution: **64 × 64**.
-# - Pretrained ImageNet backbone adapted to 10 Fashion-MNIST classes.
-# - Head training followed by optional partial fine-tuning.
-# - Test metrics, confusion matrix, parameter count, saved model size, and learning curves.
-#
-# Run from the **repository root** so the relative dataset path resolves.
-#
-# **Architecture:** EfficientNetB0
+# This script evaluates EfficientNetB0 for Fashion-MNIST classification using transfer learning from pretrained ImageNet weights.
+# The same preprocessed training, validation, and test splits used for the custom CNNs and MobileNetV2 are retained.
+# Images are resized to 64 × 64 pixels and converted to three channels.
+# Training consists of two stages: training a new classification head with the backbone frozen,
+# followed by fine-tuning selected pretrained layers with a lower learning rate.
 
-
-# ## 1. Imports and inspect the shared processed dataset
-
-from sklearn.metrics import confusion_matrix, classification_report, precision_score, recall_score
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score
 from pathlib import Path
 import os
 import time
@@ -36,199 +26,182 @@ import tensorflow as tf
 if os.getcwd().endswith('notebooks'):
     os.chdir('..')
 
+# Reproducibility setup
 SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
-tf.random.set_seed(SEED)
+tf.keras.utils.set_random_seed(SEED)
 
 DATA_PATH = Path("data/processed/fashion_mnist_processed.npz")
 OUTPUT_DIR = Path("outputs/sota")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+print(f"Dataset path: {DATA_PATH.resolve()}")
+print(f"Output directory: {OUTPUT_DIR.resolve()}")
+
 if not DATA_PATH.exists():
     raise FileNotFoundError(
-        f"Could not find {DATA_PATH.resolve()}. Run this notebook from the repository root "
-        "and ensure the preprocessing commit/data file is present."
+        f"Could not find {DATA_PATH.resolve()}. Ensure the dataset is present."
     )
 
-archive = np.load(DATA_PATH, allow_pickle=False)
-print("Archive keys:", archive.files)
-for key in archive.files:
-    arr = archive[key]
-    print(f"{key}: shape={arr.shape}, dtype={arr.dtype}")
+# Verify NPZ archive contents and load using lowercase keys
+with np.load(DATA_PATH) as data:
+    print("\nFiles found in archive:", data.files)
+    X_train = data["x_train"]
+    y_train = data["y_train"]
+    X_val = data["x_val"]
+    y_val = data["y_val"]
+    X_test = data["x_test"]
+    y_test = data["y_test"]
+
+print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+print(f"X_val shape:   {X_val.shape}, y_val shape:   {y_val.shape}")
+print(f"X_test shape:  {X_test.shape}, y_test shape:  {y_test.shape}")
 
 
-# ## 2. Load the existing train/validation/test splits and prepare 64×64 inputs
+# ## Load, resize, and prepare shared dataset tensors
 
-# This loader supports common split-key naming conventions.
-# If your preprocessing notebook uses different names, edit CANDIDATES below
-# based on the archive keys printed in the previous cell.
-CANDIDATES = {
-    "x_train": ["X_train", "x_train", "train_images", "X_train_resized", "x_train_resized"],
-    "y_train": ["y_train", "Y_train", "train_labels"],
-    "x_val":   ["X_val", "x_val", "X_valid", "x_valid", "X_validation", "x_validation",
-                "val_images", "validation_images"],
-    "y_val":   ["y_val", "Y_val", "y_valid", "Y_valid", "y_validation", "Y_validation",
-                "val_labels", "validation_labels"],
-    "x_test":  ["X_test", "x_test", "test_images", "X_test_resized", "x_test_resized"],
-    "y_test":  ["y_test", "Y_test", "test_labels"],
-}
+def prepare_and_resize_images(images, target_size=(64, 64)):
+    # Convert to float32 and 3 channels if needed
+    if images.ndim == 3:
+        images = np.expand_dims(images, axis=-1)
+    if images.shape[-1] == 1:
+        images = np.repeat(images, 3, axis=-1)
 
+    images = images.astype(np.float32)
 
-def find_key(logical_name):
-    for candidate in CANDIDATES[logical_name]:
-        if candidate in archive.files:
-            return candidate
-    return None
+    # Resize images from 28x28 to 64x64 using TensorFlow
+    images_resized = tf.image.resize(images, target_size).numpy()
+    return images_resized
 
 
-found = {name: find_key(name) for name in CANDIDATES}
-missing = [name for name, key in found.items() if key is None]
-if missing:
-    raise KeyError(
-        "The processed NPZ does not contain recognizable pre-split arrays for "
-        f"{missing}. Available keys: {archive.files}. Do not create new splits here; "
-        "update CANDIDATES to match the names used by your shared preprocessing notebook."
-    )
+X_train_prep = prepare_and_resize_images(X_train, (64, 64))
+X_val_prep = prepare_and_resize_images(X_val, (64, 64))
+X_test_prep = prepare_and_resize_images(X_test, (64, 64))
 
-X_train, y_train = archive[found["x_train"]], archive[found["y_train"]]
-X_val, y_val = archive[found["x_val"]], archive[found["y_val"]]
-X_test, y_test = archive[found["x_test"]], archive[found["y_test"]]
-
-# Flatten labels if saved as (N, 1), and convert one-hot labels to class IDs if needed.
+print("Prepared and resized shapes:")
+print(
+    f"X_train: {X_train_prep.shape}, Range: [{X_train_prep.min():.1f}, {X_train_prep.max():.1f}]")
+print(
+    f"X_val:   {X_val_prep.shape}, Range: [{X_val_prep.min():.1f}, {X_val_prep.max():.1f}]")
+print(
+    f"X_test:  {X_test_prep.shape}, Range: [{X_test_prep.min():.1f}, {X_test_prep.max():.1f}]")
 
 
-def normalize_labels(y):
-    y = np.asarray(y)
-    if y.ndim > 1 and y.shape[-1] == 10:
-        y = np.argmax(y, axis=-1)
-    return y.reshape(-1).astype("int64")
+# ## Build EfficientNetB0
 
-
-y_train, y_val, y_test = map(normalize_labels, (y_train, y_val, y_test))
-
-assert len(X_train) == len(y_train) and len(
-    X_val) == len(y_val) and len(X_test) == len(y_test)
-assert set(np.unique(y_train)).issubset(
-    set(range(10))), "Expected class IDs 0–9."
-print("Loaded shared splits:", len(X_train), "train;",
-      len(X_val), "validation;", len(X_test), "test")
-print("Split proportions:", [round(n/(len(X_train)+len(X_val)+len(X_test)), 4)
-                             for n in (len(X_train), len(X_val), len(X_test))])
-
-# Resize to 64x64 and ensure three channels for ImageNet backbones.
-# Values remain in [0, 255]; model-specific preprocessing happens below.
-
-
-def prepare_images(images):
-    x = np.asarray(images)
-    if x.ndim == 3:
-        x = x[..., None]
-    if x.ndim != 4:
-        raise ValueError(
-            f"Expected image array with 3 or 4 dimensions; got {x.shape}")
-    if x.shape[-1] not in (1, 3, 4) and x.shape[1] in (1, 3, 4):
-        x = np.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
-    if x.shape[-1] == 4:
-        x = x[..., :3]
-    if x.shape[-1] == 1:
-        x = np.repeat(x, 3, axis=-1)
-    x = tf.convert_to_tensor(x, dtype=tf.float32)
-    # Standardize scale only, not the split. Recognize [0,1] or [0,255] inputs.
-    max_value = float(tf.reduce_max(x).numpy()) if tf.size(x).numpy() else 0.0
-    if max_value <= 1.0:
-        x = x * 255.0
-    x = tf.image.resize(x, (64, 64), antialias=True)
-    return x.numpy().astype("float32")
-
-
-X_train = prepare_images(X_train)
-X_val = prepare_images(X_val)
-X_test = prepare_images(X_test)
-
-print("Final shapes:", X_train.shape, X_val.shape, X_test.shape)
-assert X_train.shape[1:3] == (64, 64) and X_train.shape[-1] == 3
-
-
-# ## 3. Build the pretrained model
-
-MODEL_NAME = "EfficientNet-B0"
+MODEL_NAME = "EfficientNetB0"
 MODEL_STEM = "efficientnetb0"
 NUM_CLASSES = 10
-BATCH_SIZE = 128
-HEAD_EPOCHS = 5
-FINE_TUNE_EPOCHS = 5
-FINE_TUNE_LAST_LAYERS = 20
 
-# Apply the correct input preprocessing for this architecture.
-PREPROCESS = None  # EfficientNetB0 includes rescaling in the Keras application model
+BATCH_SIZE = 128
+HEAD_EPOCHS = 10
+FINE_TUNE_EPOCHS = 10
+FINE_TUNE_LAST_LAYERS = 20
 
 
 def preprocess_batch(images, labels):
+    # EfficientNetB0 includes rescaling inside the Keras application.
+    # Input images should remain in the [0, 255] range.
     images = tf.cast(images, tf.float32)
-    if PREPROCESS is not None:
-        images = PREPROCESS(images)
-    return images, tf.cast(labels, tf.int64)
+    labels = tf.cast(labels, tf.int64)
+    return images, labels
 
 
 def make_dataset(images, labels, training=False):
     ds = tf.data.Dataset.from_tensor_slices((images, labels))
+
     if training:
-        ds = ds.shuffle(min(len(images), 10000), seed=SEED,
-                        reshuffle_each_iteration=True)
-    ds = ds.batch(BATCH_SIZE).map(preprocess_batch,
-                                  num_parallel_calls=tf.data.AUTOTUNE)
+        ds = ds.shuffle(
+            buffer_size=min(len(images), 10000),
+            seed=SEED,
+            reshuffle_each_iteration=True
+        )
+
+    ds = ds.batch(BATCH_SIZE)
+    ds = ds.map(
+        preprocess_batch,
+        num_parallel_calls=tf.data.AUTOTUNE
+    )
     return ds.prefetch(tf.data.AUTOTUNE)
 
 
-train_ds = make_dataset(X_train, y_train, training=True)
-val_ds = make_dataset(X_val, y_val)
-test_ds = make_dataset(X_test, y_test)
+train_ds = make_dataset(X_train_prep, y_train, training=True)
+val_ds = make_dataset(X_val_prep, y_val)
+test_ds = make_dataset(X_test_prep, y_test)
 
-# ImageNet weights provide pretrained features. The new classification head predicts 10 classes.
-Backbone = tf.keras.applications.EfficientNetB0
-backbone = Backbone(
+# Load pretrained EfficientNetB0.
+backbone = tf.keras.applications.EfficientNetB0(
     include_top=False,
     weights="imagenet",
     input_shape=(64, 64, 3)
 )
+
 backbone.trainable = False
 
 inputs = tf.keras.Input(shape=(64, 64, 3), name="image")
-x = inputs
-# Keep preprocessing in the tf.data pipeline so the two models can use their own conventions.
-x = backbone(x, training=False)
-x = tf.keras.layers.GlobalAveragePooling2D(name="global_average_pooling")(x)
-x = tf.keras.layers.Dropout(0.2, name="dropout")(x)
+x = backbone(inputs, training=False)
+x = tf.keras.layers.GlobalAveragePooling2D()(x)
+x = tf.keras.layers.Dropout(0.2)(x)
+
 outputs = tf.keras.layers.Dense(
-    NUM_CLASSES, activation="softmax", name="class_predictions")(x)
-model = tf.keras.Model(inputs, outputs, name=MODEL_NAME.replace("-", "_"))
+    NUM_CLASSES,
+    activation="softmax",
+    name="class_predictions"
+)(x)
+
+model = tf.keras.Model(
+    inputs=inputs,
+    outputs=outputs,
+    name="EfficientNetB0_FashionMNIST"
+)
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
-    loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+    loss="sparse_categorical_crossentropy",
     metrics=["accuracy"]
 )
+
 model.summary()
-print("Total parameters:", model.count_params())
-print("Trainable parameters (frozen backbone):", sum(int(tf.size(v))
-      for v in model.trainable_variables))
+
+print("Total parameters:", f"{model.count_params():,}")
+print(
+    "Initially trainable parameters:",
+    f"{sum(np.prod(v.shape) for v in model.trainable_weights):,}"
+)
 
 
-# ## 4. Train the classification head, then fine-tune selected backbone layers
+# ## Train and fine-tune EfficientNetB0
+
+best_model_path = OUTPUT_DIR / "efficientnetb0_best.keras"
 
 callbacks = [
-    tf.keras.callbacks.EarlyStopping(
-        monitor="val_loss", patience=3, restore_best_weights=True),
-    tf.keras.callbacks.ReduceLROnPlateau(
-        monitor="val_loss", factor=0.2, patience=2, min_lr=1e-6),
     tf.keras.callbacks.ModelCheckpoint(
-        str(OUTPUT_DIR / f"{MODEL_STEM}_best.keras"),
-        monitor="val_loss", save_best_only=True
+        filepath=str(best_model_path),
+        monitor="val_loss",
+        save_best_only=True,
+        mode="min",
+        verbose=1
+    ),
+    tf.keras.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=3,
+        restore_best_weights=True,
+        mode="min",
+        verbose=1
+    ),
+    tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss",
+        factor=0.2,
+        patience=2,
+        min_lr=1e-6,
+        verbose=1
     )
 ]
 
+# Phase 1: Train the classification head.
 start = time.perf_counter()
+
 history_head = model.fit(
     train_ds,
     validation_data=val_ds,
@@ -236,25 +209,33 @@ history_head = model.fit(
     callbacks=callbacks,
     verbose=1
 )
+
 head_seconds = time.perf_counter() - start
 
-# Fine-tune the last selected layers while keeping BatchNormalization layers frozen.
+# Phase 2: Fine-tune selected backbone layers.
 backbone.trainable = True
+
 for layer in backbone.layers[:-FINE_TUNE_LAST_LAYERS]:
     layer.trainable = False
+
+# Keep Batch Normalization layers frozen.
 for layer in backbone.layers:
     if isinstance(layer, tf.keras.layers.BatchNormalization):
         layer.trainable = False
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
-    loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+    loss="sparse_categorical_crossentropy",
     metrics=["accuracy"]
 )
-print("Trainable parameters (fine-tuning):", sum(int(tf.size(v))
-      for v in model.trainable_variables))
+
+print(
+    "Trainable parameters during fine-tuning:",
+    f"{sum(np.prod(v.shape) for v in model.trainable_weights):,}"
+)
 
 start = time.perf_counter()
+
 history_finetune = model.fit(
     train_ds,
     validation_data=val_ds,
@@ -262,109 +243,179 @@ history_finetune = model.fit(
     callbacks=callbacks,
     verbose=1
 )
+
 finetune_seconds = time.perf_counter() - start
-print(f"Head training seconds: {head_seconds:.1f}")
-print(f"Fine-tuning seconds: {finetune_seconds:.1f}")
+
+total_training_seconds = head_seconds + finetune_seconds
+
+total_completed_epochs = (
+    len(history_head.history["loss"])
+    + len(history_finetune.history["loss"])
+)
+
+average_epoch_seconds = (
+    total_training_seconds / total_completed_epochs
+)
+
+print(f"Head training time: {head_seconds:.2f} seconds")
+print(f"Fine-tuning time: {finetune_seconds:.2f} seconds")
+print(f"Total training time: {total_training_seconds:.2f} seconds")
+print(f"Completed epochs: {total_completed_epochs}")
+print(f"Average time per epoch: {average_epoch_seconds:.2f} seconds")
 
 
-# ## 5. Evaluate, plot results, and save metrics
+# ## Plot training and validation curves
 
-# Combine the two training phases for plots.
 def combine_histories(h1, h2):
     combined = {}
     for key in set(h1.history) | set(h2.history):
-        combined[key] = h1.history.get(key, []) + h2.history.get(key, [])
+        combined[key] = (
+            h1.history.get(key, []) + h2.history.get(key, [])
+        )
     return combined
 
 
 hist = combine_histories(history_head, history_finetune)
-epochs = range(1, len(hist.get("loss", [])) + 1)
+epochs = range(1, len(hist["loss"]) + 1)
 
-plt.figure(figsize=(8, 4))
-plt.plot(epochs, hist["loss"], label="Training loss")
-plt.plot(epochs, hist["val_loss"], label="Validation loss")
+plt.figure(figsize=(8, 5))
+plt.plot(epochs, hist["loss"], label="Training Loss")
+plt.plot(epochs, hist["val_loss"], label="Validation Loss")
+plt.title("EfficientNetB0 - Loss")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.title(f"{MODEL_NAME}: Loss")
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / f"{MODEL_STEM}_loss.png", dpi=150)
+plt.savefig(OUTPUT_DIR / "efficientnetb0_loss.png", dpi=150)
 plt.show()
 
-plt.figure(figsize=(8, 4))
-plt.plot(epochs, hist["accuracy"], label="Training accuracy")
-plt.plot(epochs, hist["val_accuracy"], label="Validation accuracy")
+plt.figure(figsize=(8, 5))
+plt.plot(epochs, hist["accuracy"], label="Training Accuracy")
+plt.plot(epochs, hist["val_accuracy"], label="Validation Accuracy")
+plt.title("EfficientNetB0 - Accuracy")
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
-plt.title(f"{MODEL_NAME}: Accuracy")
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / f"{MODEL_STEM}_accuracy.png", dpi=150)
+plt.savefig(OUTPUT_DIR / "efficientnetb0_accuracy.png", dpi=150)
 plt.show()
+
+pd.DataFrame(hist).to_csv(
+    OUTPUT_DIR / "efficientnetb0_training_history.csv",
+    index=False
+)
+
+
+# ## Final test-set evaluation
 
 test_loss, test_accuracy = model.evaluate(test_ds, verbose=1)
+
 probabilities = model.predict(test_ds, verbose=1)
 y_pred = np.argmax(probabilities, axis=1)
-y_true = y_test
+y_true = np.asarray(y_test).reshape(-1)
 
-cm = confusion_matrix(y_true, y_pred, labels=list(range(10)))
+weighted_precision = precision_score(
+    y_true, y_pred, average="weighted", zero_division=0
+)
+weighted_recall = recall_score(
+    y_true, y_pred, average="weighted", zero_division=0
+)
+macro_precision = precision_score(
+    y_true, y_pred, average="macro", zero_division=0
+)
+macro_recall = recall_score(
+    y_true, y_pred, average="macro", zero_division=0
+)
+
 print(f"Test loss: {test_loss:.4f}")
 print(f"Test accuracy: {test_accuracy:.4%}")
-print(
-    f"Macro precision: {precision_score(y_true, y_pred, average='macro', zero_division=0):.4f}")
-print(
-    f"Macro recall: {recall_score(y_true, y_pred, average='macro', zero_division=0):.4f}")
-print("\\nClassification report:")
-print(classification_report(y_true, y_pred, digits=4, zero_division=0))
+print(f"Weighted precision: {weighted_precision:.4f}")
+print(f"Weighted recall: {weighted_recall:.4f}")
+print(f"Macro precision: {macro_precision:.4f}")
+print(f"Macro recall: {macro_recall:.4f}")
 
-plt.figure(figsize=(8, 7))
+class_names = [
+    "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+    "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"
+]
+
+print("\nClassification report:")
+print(classification_report(
+    y_true,
+    y_pred,
+    labels=np.arange(10),
+    target_names=class_names,
+    zero_division=0,
+    digits=4
+))
+
+
+# ## Confusion matrix
+
+cm = confusion_matrix(y_true, y_pred, labels=np.arange(10))
+
+plt.figure(figsize=(10, 8))
 plt.imshow(cm, interpolation="nearest")
-plt.title(f"{MODEL_NAME}: Confusion Matrix")
+plt.title("EfficientNetB0 - Confusion Matrix")
 plt.colorbar()
+
 ticks = np.arange(10)
-plt.xticks(ticks, ticks)
-plt.yticks(ticks, ticks)
-plt.xlabel("Predicted label")
-plt.ylabel("True label")
+plt.xticks(ticks, class_names, rotation=45, ha="right")
+plt.yticks(ticks, class_names)
+
+plt.xlabel("Predicted class")
+plt.ylabel("True class")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / f"{MODEL_STEM}_confusion_matrix.png", dpi=150)
+
+plt.savefig(
+    OUTPUT_DIR / "efficientnetb0_confusion_matrix.png",
+    dpi=150
+)
 plt.show()
 
-# Save final model and report its on-disk size.
-final_model_path = OUTPUT_DIR / f"{MODEL_STEM}_final.keras"
+
+# ## Save model and export metrics
+
+final_model_path = OUTPUT_DIR / "efficientnetb0_final.keras"
 model.save(final_model_path)
-model_size_mb = final_model_path.stat().st_size / (1024**2)
-trainable_params = sum(int(tf.size(v)) for v in model.trainable_variables)
+
+model_size_bytes = final_model_path.stat().st_size
+model_size_kb = model_size_bytes / 1024
+model_size_mb = model_size_bytes / (1024 ** 2)
+
+total_params = model.count_params()
+trainable_params = sum(
+    int(np.prod(v.shape)) for v in model.trainable_weights
+)
+
 summary = {
     "model": MODEL_NAME,
     "input_resolution": "64x64x3",
-    "dataset_path": str(DATA_PATH),
     "train_samples": int(len(X_train)),
     "validation_samples": int(len(X_val)),
     "test_samples": int(len(X_test)),
-    "total_parameters": int(model.count_params()),
+    "total_parameters": int(total_params),
     "trainable_parameters_after_finetuning": int(trainable_params),
-    "model_size_mb": round(model_size_mb, 3),
+    "model_size_bytes": int(model_size_bytes),
+    "model_size_kb": round(model_size_kb, 2),
+    "model_size_mb": round(model_size_mb, 4),
+    "completed_epochs": int(total_completed_epochs),
+    "head_training_seconds": round(head_seconds, 2),
+    "fine_tuning_seconds": round(finetune_seconds, 2),
+    "total_training_seconds": round(total_training_seconds, 2),
+    "average_epoch_seconds": round(average_epoch_seconds, 2),
     "test_loss": float(test_loss),
     "test_accuracy": float(test_accuracy),
-    "macro_precision": float(precision_score(y_true, y_pred, average="macro", zero_division=0)),
-    "macro_recall": float(recall_score(y_true, y_pred, average="macro", zero_division=0)),
-    "head_training_seconds": round(head_seconds, 2),
-    "fine_tuning_seconds": round(finetune_seconds, 2)
+    "weighted_precision": float(weighted_precision),
+    "weighted_recall": float(weighted_recall),
+    "macro_precision": float(macro_precision),
+    "macro_recall": float(macro_recall)
 }
-summary_path = OUTPUT_DIR / f"{MODEL_STEM}_metrics.json"
+
+summary_path = OUTPUT_DIR / "efficientnetb0_metrics.json"
 summary_path.write_text(json.dumps(summary, indent=2))
-print("\\nSaved summary:")
-print(json.dumps(summary, indent=2))
 
-
-# ## Notes before running
-#
-# 1. Run all cells from the repository root, where `data/processed/fashion_mnist_processed.npz` exists.
-# 2. The archive must contain already separated train, validation and test arrays. If key names differ, edit `CANDIDATES` in the loader cell; do not make a new split in this notebook.
-# 3. If your preprocessed NPZ uses a different path or schema, update the path/key mapping to match the actual preprocessing notebook.
-# 4. The notebook saves metrics, plots and models under `outputs/sota/`.
-# 5. First run downloads ImageNet weights if they are not cached. Internet access may be needed once.
-# 6. Results will differ by hardware, TensorFlow version, random seeds and training duration. Do not write results into the report until this notebook has actually run successfully.
+print(f"Model saved: {final_model_path}")
+print(f"Metrics saved: {summary_path}")
