@@ -1,0 +1,516 @@
+%\documentclass[tikz,border=5pt]{standalone}
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{mdframed}
+\usepackage{tikz}
+\usepackage{bm}
+\usepackage{varwidth}
+
+% Figure helper: include the figure when available; otherwise show a clear placeholder.
+\newcommand{\figureplaceholder}[2]{%
+    \begin{figure}[H]
+    \centering
+    \IfFileExists{#2}{%
+        \includegraphics[width=0.88\textwidth,height=0.42\textheight,keepaspectratio]{#2}%
+    }{%
+        \fbox{\parbox[c][3cm][c]{0.82\textwidth}{\centering\small Figure not found: \texttt{\detokenize{#2}}}}%
+    }%
+    \caption{#1}
+    \end{figure}
+}
+
+% Equation box style
+\newsavebox{\equationboxsave}
+\newenvironment{equationbox}{
+    \begin{center}
+    \begin{lrbox}{\equationboxsave}
+    \begin{varwidth}{\textwidth}
+}{
+    \end{varwidth}
+    \end{lrbox}
+    \begin{tcolorbox}[
+        colback=blue!5,
+        colframe=blue!45!black,
+        boxrule=1pt,
+        arc=8pt,
+        left=10pt,
+        right=10pt,
+        top=4pt,
+        bottom=4pt,
+        width=\dimexpr\wd\equationboxsave+22pt\relax,
+        before skip=8pt,
+        after skip=8pt
+    ]
+    \usebox{\equationboxsave}
+    \end{tcolorbox}
+    \end{center}
+}
+
+% ============================================================
+% Python Code Formatting
+% ============================================================
+
+% Define Python code style
+\definecolor{codegreen}{rgb}{0.0,0.45,0.25}
+\definecolor{codeblue}{rgb}{0.0,0.25,0.65}
+\definecolor{codepurple}{rgb}{0.50,0.0,0.50}
+\definecolor{codered}{rgb}{0.65,0.10,0.10}
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codebackground}{rgb}{0.97,0.97,0.97}
+\definecolor{darkblue}{RGB}{0,51,102}
+\definecolor{navyblue}{RGB}{0,0,128}
+
+\lstdefinestyle{pythonstyle}{
+    language=Python,
+    backgroundcolor=\color{codebackground},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen},
+    stringstyle=\color{codered},
+    identifierstyle=\color{black},
+    numberstyle=\tiny\color{codegray},
+    numbers=left,
+    numbersep=8pt,
+    frame=single,
+    rulecolor=\color{gray!40},
+    breaklines=true,
+    breakatwhitespace=false,
+    showstringspaces=false,
+    tabsize=4,
+    keepspaces=true,
+    columns=fullflexible
+}
+
+\lstset{
+    language=Verilog,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    style=pythonstyle,
+}
+
+\tikzstyle{block} = [rectangle, draw, minimum width=2.5cm, minimum height=0.9cm, text centered, font=\small]
+\tikzstyle{arrow} = [->, thick]
+
+% =========================
+% Page Setup
+% =========================
+\geometry{
+    top=1in,
+    bottom=1in,
+    left=1in,
+    right=1in
+}
+
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+
+% Header/Footer
+\setlength{\headheight}{25pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{black}{\textbf{EN3150 }}}
+\fancyhead[R]{\small\textcolor{black}{Pattern Recognition}}
+\fancyfoot[C]{\small\textcolor{black}{\thepage}}
+\renewcommand{\headrulewidth}{1.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{black}\leaders\hrule height \headrulewidth\hfill}}
+
+% Section formatting
+\titleformat{\section}
+  {\large\bfseries\color{darkblue}}
+  {\thesection}{1em}{}
+  [\vspace{-4pt}\textcolor{darkblue}{\hrule height 0.8pt}\vspace{2pt}]
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{navyblue}}
+  {\thesubsection}{1em}{}
+\titlespacing{\section}{0pt}{16pt}{8pt}
+\titlespacing{\subsection}{0pt}{10pt}{4pt}
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit}
+\setcounter{tocdepth}{3}
+
+% =========================
+% Document
+% =========================
+\begin{document}
+
+% =========================
+% Title Page
+% =========================
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+
+    % Institution
+    {\LARGE\textbf{\textcolor{codered}{University of Moratuwa}}\par}
+    {\normalsize{\textcolor{black}{Department of Electronic and Telecommunication Engineering}}\par}
+    \vspace{0.3cm}
+    \textcolor{black}{\rule{0.6\textwidth}{1.5pt}}
+    \vspace{1.2cm}
+
+    % Course badge
+    \begin{figure}[H]
+    \centering
+    \IfFileExists{uom_logo.png}{\includegraphics[width=7cm,height=7cm]{uom_logo.png}}{\fbox{\parbox[c][5cm][c]{7cm}{\centering University of Moratuwa}}}
+    \end{figure}
+
+    \vspace{1.2cm}
+
+    {\LARGE\bfseries\textcolor{darkblue}{Resource-Constrained CNN for Edge Image Classification}\par}
+    \vspace{0.4cm}
+    {\Large {EN3150 Pattern Recognition}\par}
+
+    \vspace{1.5cm}
+
+    % Details table
+    \begin{table}[h]
+    \centering
+    \begin{tabular}{ll}
+    \textbf{Group Name: } & \textbf{Rubix} \\
+    \\
+    \textbf{230264R} & Janurajah J. \\
+    \textbf{230585C} & Saruka U.\\
+    \textbf{230638T} & Thayarathan V.\\
+    \\
+    \textbf{Submitted on} & October 19, 2026 \\
+    \end{tabular}
+\end{table}
+  
+\end{titlepage}
+
+% =========================
+% Table of Contents
+% =========================
+\tableofcontents
+
+\newpage
+\pagenumbering{arabic}
+
+% -------------------- 1. INTRODUCTION --------------------
+\section{Introduction}
+Convolutional neural networks (CNNs) are widely used for image classification, but the memory and computational requirements of large models can make deployment difficult on embedded devices and edge nodes. This assignment investigates the trade-off between classification performance and resource efficiency by developing two custom CNNs and comparing them with two pretrained lightweight architectures.
+
+Fashion-MNIST is used as the image-classification dataset. Model A uses conventional two-dimensional convolutions, while Model B uses depthwise separable convolutions and is constrained to no more than 100,000 trainable parameters. MobileNetV2 and EfficientNetB0 are fine-tuned as pretrained reference models.
+
+The objectives are to prepare low-resolution data with a 70/15/15 split; design and document two custom CNN architectures; compare Adam, SGD and SGD with Momentum for Model B; evaluate all models using classification metrics and resource measures; and discuss accuracy, memory footprint and computational cost.
+
+% -------------------- 2. DATA --------------------
+\section{Dataset and Preprocessing}
+\subsection{Dataset description}
+Fashion-MNIST contains 70,000 grayscale images of clothing items across ten classes. Each original image is 28 $\times$ 28 pixels. Table~\ref{tab:classes} lists the labels.
+\begin{table}[H]\centering
+\caption{Fashion-MNIST class labels}\label{tab:classes}
+\begin{tabular}{cl}\toprule Label & Class name\\\midrule
+0 & T-shirt/top\\1 & Trouser\\2 & Pullover\\3 & Dress\\4 & Coat\\5 & Sandal\\6 & Shirt\\7 & Sneaker\\8 & Bag\\9 & Ankle boot\\\bottomrule
+\end{tabular}\end{table}
+
+\subsection{Data split}
+The data were split into training, validation and test subsets using a 70/15/15 ratio. For all 70,000 images, the expected counts are 49,000, 10,500 and 10,500 respectively. Verify these values against the processed dataset actually used by the notebooks.
+\begin{table}[H]\centering
+\caption{Dataset split used in the experiments}\label{tab:split}
+\begin{tabular}{lrr}\toprule Subset & Percentage & Number of images\\\midrule
+Training & 70\% & 60,000\\
+Validation & 15\% & 10,000\\
+Testing & 15\% & 10,000\\\midrule
+Total & 100\% & 80,000\\\bottomrule
+\end{tabular}\end{table}
+
+\subsection{Preprocessing pipeline}
+For the custom CNNs, images are represented as single-channel grayscale inputs at 28 $\times$ 28 pixels, if this matches the executed preprocessing notebook. MobileNetV2 and EfficientNetB0 use images resized to 64 $\times$ 64 pixels and converted to three channels. The same underlying training, validation and test examples are used for all models.
+
+MobileNetV2 preprocessing must follow the Keras MobileNetV2 input convention. EfficientNetB0's Keras implementation includes input rescaling; its input values must follow the expected range for the installed implementation. Keep the preprocessing pipelines separate.
+
+\figureplaceholder{Representative Fashion-MNIST images with class labels. Export this figure from Notebook 01.}{fig/samples.png}
+
+% -------------------- 3. ARCHITECTURES --------------------
+\newpage
+\section{Custom CNN Architecture Design}
+\subsection{Model A: Standard CNN}
+Model A is the baseline CNN. Conventional convolutional layers extract spatial features, and max-pooling layers reduce feature-map dimensions. The resulting representation is flattened and passed to a dense hidden layer and a ten-class softmax output.
+
+\begin{table}[H]\centering
+\caption{Model A architecture; verify layer details and parameter counts from the executed model summary.}\label{tab:modela}
+\begin{tabularx}{\textwidth}{l X r}\toprule
+Layer & Configuration & Parameters\\\midrule
+Input & $28\times28\times1$ & 0\\
+Conv2D & 16 filters, $3\times3$, ReLU & 160\\
+MaxPooling2D & $2\times2$ & 0\\
+Conv2D & 32 filters, $3\times3$, ReLU & 4,640\\
+MaxPooling2D & $2\times2$ & 0\\
+Conv2D & 64 filters, $3\times3$, ReLU & 18,496\\
+MaxPooling2D & $2\times2$ & 0\\
+Flatten & Flatten feature maps & 0\\
+Dense & 64 units, ReLU & 36,928\\
+Dense & 10 units, softmax &  650 \\\midrule
+Total & & 60,874 \\\bottomrule
+\end{tabularx}\end{table}
+
+For a conventional convolution with biases, the parameter count is
+\begin{equation}\label{eq:convparams}
+P_{\mathrm{conv}}=(K_hK_wC_{\mathrm{in}}+1)C_{\mathrm{out}},
+\end{equation}
+where $K_h$ and $K_w$ are kernel dimensions, $C_{\mathrm{in}}$ is the number of input channels and $C_{\mathrm{out}}$ is the number of filters. For a dense layer,
+\begin{equation}\label{eq:denseparams}
+P_{\mathrm{dense}}=(n_{\mathrm{in}}+1)n_{\mathrm{out}}.
+\end{equation}
+
+%\figureplaceholder{Model A architecture diagram or screenshot of its model summary. Ensure it matches the executed code.}{02_Model_A_Standard_CNN_cell10_fig1.png}
+
+\subsection{Model B: Lightweight CNN}
+Model B replaces conventional convolutions with depthwise separable convolutions. A depthwise convolution applies a spatial filter independently to each input channel; a pointwise $1\times1$ convolution combines the channel-wise features. This factorization can reduce parameter count and multiply-accumulate operations relative to a conventional convolution with comparable channel dimensions.
+
+For a depthwise separable convolution with a $K_h\times K_w$ kernel, $C_{\mathrm{in}}$ input channels and $C_{\mathrm{out}}$ output channels, with one bias per output channel,
+\begin{equation}\label{eq:sepparams}
+P_{\mathrm{sep}}=K_hK_wC_{\mathrm{in}}+C_{\mathrm{in}}C_{\mathrm{out}}+C_{\mathrm{out}}.
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{Model B lightweight CNN architecture}
+\label{tab:modelb}
+\begin{tabularx}{\textwidth}{l X r}
+\toprule
+Layer & Configuration & Parameters \\
+\midrule
+Input & $28\times28\times1$ & 0 \\
+SeparableConv2D & 32 filters, $3\times3$, ReLU & 59 \\
+MaxPooling2D & $2\times2$ & 0 \\
+SeparableConv2D & 64 filters, $3\times3$, ReLU & 2,400 \\
+MaxPooling2D & $2\times2$ & 0 \\
+SeparableConv2D & 96 filters, $3\times3$, ReLU & 6,336 \\
+GlobalAveragePooling2D & Global spatial average & 0 \\
+Dense & 64 units, ReLU & 6,208 \\
+Dense & 10 units, softmax & 650 \\
+\midrule
+Total & Trainable parameters & 15,653 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+\subsection{Activation functions and hardware considerations}
+ReLU is used in hidden layers because $f(x)=\max(0,x)$ is computationally simple and avoids the exponential calculations used by sigmoid and tanh. It is widely supported by deep-learning runtimes. The output layer uses softmax to convert class logits into a probability distribution over ten classes. Softmax requires exponentials but is appropriate for normalized multi-class probabilities; its cost should be considered separately from the main convolutional computation.
+
+% -------------------- 4. OPTIMIZERS --------------------
+\newpage
+\section{Optimizer Selection and Training Methodology}
+\subsection{Optimizer comparison}
+Model B's optimizer selection compares Adam, standard stochastic gradient descent (SGD), and SGD with Momentum. Candidates should use the same data splits, architecture, batch size and comparable training settings. Select the optimizer using validation metrics, not test-set performance.
+
+\begin{table}[H]\centering
+\caption{Optimizer comparison for Model B; fill from the optimizer comparison output.}\label{tab:optimizers}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X
+>{\centering\arraybackslash}p{1.8cm}
+>{\centering\arraybackslash}p{3.2cm}
+>{\centering\arraybackslash}p{2.1cm}
+>{\centering\arraybackslash}p{2cm}}\toprule
+Optimizer & \shortstack{Learning\\rate} & \shortstack{Best\\validation\\accuracy (\%)} & \shortstack{Best\\validation\\loss} & \shortstack{Time\\(s/epoch)}\\\midrule
+Adam & 0.001 & 87.09 & 0.3533 & 6.90\\
+SGD & 0.01 & 84.88 & 0.4237 & 6.87\\
+SGD with Momentum & 0.01 & 86.50 & 0.3700 & 7.31\\\bottomrule
+\end{tabularx}\end{table}
+
+SGD updates parameters using the current gradient. Momentum incorporates a contribution from previous gradients, which can smooth updates and accelerate progress in consistent directions. Adam adapts update scales using estimates of first and second gradient moments. The methods may differ in convergence speed, stability and validation performance; discuss the measured results.
+
+\textbf{Selected optimizer and learning rate:} Adam, learning rate $10^{-3}$.\\
+\textbf{Reason for selection:} Adam achieved the highest final validation accuracy in the 20-epoch optimizer comparison (87.09\%) and lower validation loss than plain SGD. Momentum improved validation accuracy over plain SGD, but the run stopped after 11 epochs.
+\figureplaceholder{Model B optimizer comparison plot showing validation accuracy and validation loss.}{fig/model_b_optimizer.png}
+
+\subsection{Training configuration}
+Both custom CNNs must complete at least 20 training epochs. Include the actual configuration from the executed notebooks.
+\begin{table}[H]\centering
+\caption{Training configuration}\label{tab:training}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}X}\toprule
+Setting & Model A & Model B\\\midrule
+Loss function & Sparse categorical cross-entropy & Sparse categorical cross-entropy\\
+Optimizer & Adam & Adam\\
+Learning rate & 0.001 & 0.001\\
+Batch size & 128 & 128\\
+Completed epochs & 20 & 25\\
+Checkpointing / early stopping & Best validation checkpoint & Best validation checkpoint; LR reduction\\\bottomrule
+\end{tabularx}\end{table}
+
+For pretrained models, report the actual number of epochs completed during frozen-backbone training and fine-tuning. If early stopping is used, report completed epochs rather than only the configured maximum.
+
+% -------------------- 5. RESULTS --------------------
+\newpage
+\section{Experimental Results}
+\subsection{Model A learning curves}
+\figureplaceholder{Model A training and validation loss across epochs.}{fig/training_curves_a.png}
+
+\subsection{Model B learning curves}
+\figureplaceholder{Model B training and validation loss across epochs.}{fig/training_curves.png}
+
+\subsection{Test-set classification performance}
+Evaluate the final selected models on the held-out test set. Fill Table~\ref{tab:metrics} using actual outputs from the four notebooks.
+\begin{table}[H]\centering
+\caption{Test-set classification metrics}\label{tab:metrics}
+\resizebox{\textwidth}{!}{\begin{tabular}{lrrrrr}\toprule
+Model & Accuracy (\%) & Weighted precision & Weighted recall & Macro precision & Macro recall\\\midrule
+Model A & 89.58 & 0.8963 & 0.8958 & 0.8963 & 0.8958\\
+Model B & 89.10 & 0.8902 & 0.8910 & 0.8902 & 0.8910\\
+MobileNetV2 & 88.23 & 0.8815 & 0.8823 & 0.8815 & 0.8823\\
+EfficientNetB0 & 89.29 & 0.8921 & 0.8929 & 0.8921 & 0.8929\\\bottomrule
+\end{tabular}}\end{table}
+
+Precision measures how many predictions assigned to a class are correct; recall measures how many true examples of a class are retrieved. Weighted averages account for class support, while macro averages give each class equal weight. Report measured values rather than assuming the metrics are equal.
+
+\subsection{Confusion matrices}
+\figureplaceholder{Model A test-set confusion matrix.}{fig/a_matrix.png}
+\figureplaceholder{Model B test-set confusion matrix.}{fig/b_matrix.png}
+\figureplaceholder{MobileNetV2 test-set confusion matrix.}{fig/mobilenetv2_matrix.png}
+\figureplaceholder{EfficientNetB0 test-set confusion matrix.}{../efficientnetb0_matrix.png}
+
+\subsection{Pretrained model learning curves}
+\figureplaceholder{MobileNetV2 training and validation loss curves.}{fig/mobilenetv2_curves.png}
+\figureplaceholder{EfficientNetB0 training and validation loss curves.}{fig/efficientnetb0_curves.png}
+
+% -------------------- 6. COMPARISON --------------------
+\newpage
+\section{Resource Efficiency and Model Comparison}
+\subsection{Custom model comparison}
+\begin{table}[H]\centering
+\caption{Required comparison of the two custom CNNs}\label{tab:customcomparison}
+\begin{tabular}{lrr}\toprule Metric & Model A & Model B\\\midrule
+Total parameters & 60,874 & 4,738\\
+Estimated/saved model size (KB) & 757.90 & 18.51\\
+Average training time per epoch (s) & 17.17 & 7.52\\
+Test accuracy (\%) & 89.58 & 89.10\\\bottomrule
+\end{tabular}\end{table}
+
+Discuss whether depthwise separable convolutions reduced parameter count and saved model size, and how they affected accuracy and training time. Do not assume Model B is faster solely because it has fewer parameters: runtime depends on hardware, batch size and operation implementation.
+
+\subsection{Comparison with lightweight pretrained networks}
+\begin{table}[H]\centering
+\caption{Comparison of Model B with pretrained lightweight models}\label{tab:sotacomparison}
+\resizebox{\textwidth}{!}{\begin{tabular}{lrrr}\toprule
+Metric & Model B & MobileNetV2 & EfficientNetB0\\\midrule
+Total parameters & 4,738 & 2,270,794 & 4,062,381\\
+Trainable parameters after fine-tuning & 4,354 & 1,207,690 & 1,355,578\\
+Saved model size (MB) & 0.018 & 8.67* & 15.51*\\
+Average training time per epoch (s) & 7.52 & 40.38 & 61.16\\
+Test accuracy (\%) & 89.10 & 88.23 & 89.29\\
+Weighted precision & 0.8902 & 0.8815 & 0.8921\\
+Weighted recall & 0.8910 & 0.8823 & 0.8929\\
+Input resolution & $28\times28\times1$ & $64\times64\times3$ & $64\times64\times3$\\\bottomrule
+\end{tabular}}\end{table}
+
+
+\subsection{Accuracy, memory and computation trade-offs}
+
+\begin{enumerate}[leftmargin=1.5em]
+
+    \item \textbf{Highest test accuracy:}
+    Model A achieved the highest test accuracy of $89.58\%$,
+    outperforming Model B ($89.10\%$) by $0.48$ percentage points.
+
+    \item \textbf{Model size:}
+    Model B has only $4{,}738$ parameters, compared with
+    $2{,}270{,}794$ for MobileNetV2 and $4{,}062{,}381$ for
+    EfficientNetB0. This makes Model B much more compact.
+    Actual saved model sizes should be compared using the exported
+    file sizes.
+
+    \item \textbf{Effect of pretraining:}
+    ImageNet pretraining did not improve accuracy over Model A.
+    MobileNetV2 achieved $88.23\%$, while EfficientNetB0 achieved
+    $89.29\%$. However, EfficientNetB0 performed slightly better
+    than Model B.
+
+    \item \textbf{Training time:}
+    The model with the shortest measured training time per epoch
+    should be identified from the experimental results. Training
+    time alone does not determine inference speed or energy use,
+    which depend on the hardware and implementation.
+
+    \item \textbf{Model A versus Model B:}
+    Model B achieved nearly the same accuracy as Model A while
+    reducing the parameter count by approximately $92.22\%$.
+    This makes it a useful option when memory is limited, with
+    only a small reduction in test accuracy.
+
+    \item \textbf{Overall comparison:}
+    Model B offers a compact and efficient architecture, while
+    Model A provides the highest test accuracy. Pretrained models
+    have substantially more parameters but can benefit from
+    previously learned features. The best choice depends on the
+    application's accuracy and resource requirements.
+
+\end{enumerate}
+
+The experiments show that a smaller model can achieve competitive
+accuracy without requiring a large pretrained architecture. For
+reproducibility, the final report should state the experimental
+hardware, software versions, and timing method used.
+
+% -------------------- 7. LIMITATIONS --------------------
+\newpage
+\section{Limitations}
+Fashion-MNIST is a low-resolution dataset with ten classes, so results may not generalize to more complex real-world imagery. The pretrained networks receive resized three-channel inputs, whereas custom CNNs can operate directly on grayscale images; this difference should be considered when interpreting computation and input-processing overhead.
+
+Training time depends on CPU/GPU hardware, runtime configuration, batch size, software versions and whether data loading is included. Saved model size depends on serialization format. Parameter count, file size and training time do not alone measure on-device inference latency, peak RAM use, energy consumption or multiply-accumulate operations.
+
+% -------------------- 8. CONCLUSION --------------------
+\section{Conclusion}
+
+This assignment compared two custom CNN architectures with two pretrained image-classification networks on Fashion-MNIST. Model A provided a conventional CNN baseline, while Model B used depthwise separable convolutions to reduce the parameter count.
+
+Model A achieved the highest test accuracy of 89.58\%, followed by EfficientNetB0 at 89.29\%, Model B at 89.10\%, and MobileNetV2 at 88.23\%. With only 4,738 parameters, Model B achieved competitive accuracy while using far fewer parameters than the pretrained models. Overall, the results show that a carefully designed lightweight CNN can achieve comparable performance with much lower model complexity, making it a practical choice when memory and computational resources are limited.
+
+% -------------------- 9. REPRODUCIBILITY --------------------
+\newpage
+\section{Reproducibility and GitHub Repository}
+\textbf{GitHub repository:} \url{https://github.com/Saruka03/EN3150-CNN-Classification}\\
+The repository should contain the five Jupyter notebooks and a README describing dependencies, dataset preparation, execution order and required supporting files.
+
+\textbf{Hardware used:} Notebook logs report no available GPU for the Model B run; CPU model and RAM were not recorded in the exported outputs.\\
+\textbf{Software versions:} TensorFlow 2.21.0 is recorded in the Model B notebook; other package versions were not consistently recorded.
+
+% -------------------- REFERENCES --------------------
+\newpage
+\section{References}
+\begin{enumerate}[leftmargin=1.5em]
+\item H. Xiao, K. Rasul and R. Vollgraf, ``Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms,'' 2017. Available: \url{https://github.com/zalandoresearch/fashion-mnist}.
+\item A. G. Howard et al., ``MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications,'' arXiv:1704.04861, 2017. Available: \url{https://arxiv.org/abs/1704.04861}.
+\item M. Sandler et al., ``MobileNetV2: Inverted Residuals and Linear Bottlenecks,'' CVPR, 2018. Available: \url{https://arxiv.org/abs/1801.04381}.
+\item M. Tan and Q. V. Le, ``EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'' ICML, 2019. Available: \url{https://arxiv.org/abs/1905.11946}.
+\item TensorFlow, ``Transfer learning and fine-tuning.'' Available: \url{https://www.tensorflow.org/guide/keras/transfer_learning}.
+\item TensorFlow, ``Keras Applications.'' Available: \url{https://www.tensorflow.org/api_docs/python/tf/keras/applications}.
+\item EN3150 Pattern Recognition, ``Assignment 03: Resource-Constrained CNN for Edge Image Classification,'' course assignment brief, University of Moratuwa, 2026.
+\end{enumerate}
+
+
+\end{document}

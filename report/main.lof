@@ -1,0 +1,10 @@
+\contentsline {figure}{\numberline {1}{\ignorespaces Representative Fashion-MNIST images with class labels. Export this figure from Notebook 01.}}{2}{figure.caption.3}%
+\contentsline {figure}{\numberline {2}{\ignorespaces Model B optimizer comparison plot showing validation accuracy and validation loss.}}{5}{figure.caption.7}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Model A training and validation loss across epochs.}}{6}{figure.caption.9}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Model B training and validation loss across epochs.}}{6}{figure.caption.10}%
+\contentsline {figure}{\numberline {5}{\ignorespaces Model A test-set confusion matrix.}}{7}{figure.caption.12}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Model B test-set confusion matrix.}}{8}{figure.caption.13}%
+\contentsline {figure}{\numberline {7}{\ignorespaces MobileNetV2 test-set confusion matrix.}}{8}{figure.caption.14}%
+\contentsline {figure}{\numberline {8}{\ignorespaces EfficientNetB0 test-set confusion matrix.}}{9}{figure.caption.15}%
+\contentsline {figure}{\numberline {9}{\ignorespaces MobileNetV2 training and validation loss curves.}}{9}{figure.caption.16}%
+\contentsline {figure}{\numberline {10}{\ignorespaces EfficientNetB0 training and validation loss curves.}}{9}{figure.caption.17}%

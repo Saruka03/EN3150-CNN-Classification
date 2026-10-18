@@ -1,0 +1,10 @@
+\contentsline {table}{\numberline {1}{\ignorespaces Fashion-MNIST class labels}}{1}{table.caption.1}%
+\contentsline {table}{\numberline {2}{\ignorespaces Dataset split used in the experiments}}{2}{table.caption.2}%
+\contentsline {table}{\numberline {3}{\ignorespaces Model A architecture; verify layer details and parameter counts from the executed model summary.}}{3}{table.caption.4}%
+\contentsline {table}{\numberline {4}{\ignorespaces Model B lightweight CNN architecture; replace values with the exact Notebook 03 output.}}{4}{table.caption.5}%
+\contentsline {table}{\numberline {5}{\ignorespaces Optimizer comparison for Model B; fill from the optimizer comparison output.}}{5}{table.caption.6}%
+\contentsline {table}{\numberline {6}{\ignorespaces Training configuration}}{6}{table.caption.8}%
+\contentsline {table}{\numberline {7}{\ignorespaces Test-set classification metrics}}{7}{table.caption.11}%
+\contentsline {table}{\numberline {8}{\ignorespaces Required comparison of the two custom CNNs}}{10}{table.caption.18}%
+\contentsline {table}{\numberline {9}{\ignorespaces Comparison of Model B with pretrained lightweight models}}{10}{table.caption.19}%
+\contentsline {table}{\numberline {10}{\ignorespaces Code and output inventory}}{12}{table.caption.20}%
