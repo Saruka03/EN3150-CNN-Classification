@@ -232,22 +232,22 @@ Fashion-MNIST contains 70,000 grayscale images of clothing items across ten clas
 \end{tabular}\end{table}
 
 \subsection{Data split}
-The data were split into training, validation and test subsets using a 70/15/15 ratio. For all 70,000 images, the expected counts are 49,000, 10,500 and 10,500 respectively. Verify these values against the processed dataset actually used by the notebooks.
+The data were split into training, validation and test subsets using a 70/15/15 ratio. The processed dataset used in all five notebooks contains 70,000 examples split into 49,000 training images, 10,500 validation images and 10,500 test images. The proportions are therefore 70\%, 15\% and 15\%.
 \begin{table}[H]\centering
 \caption{Dataset split used in the experiments}\label{tab:split}
 \begin{tabular}{lrr}\toprule Subset & Percentage & Number of images\\\midrule
-Training & 70\% & 60,000\\
-Validation & 15\% & 10,000\\
-Testing & 15\% & 10,000\\\midrule
-Total & 100\% & 80,000\\\bottomrule
+Training & 70\% & 49,000\\
+Validation & 15\% & 10,500\\
+Testing & 15\% & 10,500\\\midrule
+Total & 100\% & 70,000\\\bottomrule
 \end{tabular}\end{table}
 
 \subsection{Preprocessing pipeline}
-For the custom CNNs, images are represented as single-channel grayscale inputs at 28 $\times$ 28 pixels, if this matches the executed preprocessing notebook. MobileNetV2 and EfficientNetB0 use images resized to 64 $\times$ 64 pixels and converted to three channels. The same underlying training, validation and test examples are used for all models.
+For the custom CNNs, images are represented as single-channel grayscale inputs at 28 $\times$ 28 pixels, normalized to the range $[0,1]$. MobileNetV2 and EfficientNetB0 use images resized to 64 $\times$ 64 pixels and converted to three channels. The same underlying training, validation and test examples are used for all models.
 
-MobileNetV2 preprocessing must follow the Keras MobileNetV2 input convention. EfficientNetB0's Keras implementation includes input rescaling; its input values must follow the expected range for the installed implementation. Keep the preprocessing pipelines separate.
+For MobileNetV2, the notebook applies the Keras MobileNetV2 preprocessing function. The EfficientNetB0 Keras application includes its own rescaling layer, so the notebook passes the resized float32 image values without applying the MobileNetV2 transformation. The pipelines are therefore model-specific.
 
-\figureplaceholder{Representative Fashion-MNIST images with class labels. Export this figure from Notebook 01.}{fig/samples.png}
+\figureplaceholder{Representative Fashion-MNIST images with class labels.}{fig/samples.png}
 
 % -------------------- 3. ARCHITECTURES --------------------
 \newpage
@@ -256,7 +256,7 @@ MobileNetV2 preprocessing must follow the Keras MobileNetV2 input convention. Ef
 Model A is the baseline CNN. Conventional convolutional layers extract spatial features, and max-pooling layers reduce feature-map dimensions. The resulting representation is flattened and passed to a dense hidden layer and a ten-class softmax output.
 
 \begin{table}[H]\centering
-\caption{Model A architecture; verify layer details and parameter counts from the executed model summary.}\label{tab:modela}
+\caption{Model A architecture and parameter counts from the executed model summary.}\label{tab:modela}
 \begin{tabularx}{\textwidth}{l X r}\toprule
 Layer & Configuration & Parameters\\\midrule
 Input & $28\times28\times1$ & 0\\
@@ -293,23 +293,25 @@ P_{\mathrm{sep}}=K_hK_wC_{\mathrm{in}}+C_{\mathrm{in}}C_{\mathrm{out}}+C_{\mathr
 
 \begin{table}[H]
 \centering
-\caption{Model B lightweight CNN architecture}
+\caption{Model B lightweight CNN architecture, grouped by functional block}
 \label{tab:modelb}
+\small
 \begin{tabularx}{\textwidth}{l X r}
 \toprule
-Layer & Configuration & Parameters \\
+Layer/block & Configuration & Parameters\\
 \midrule
-Input & $28\times28\times1$ & 0 \\
-SeparableConv2D & 32 filters, $3\times3$, ReLU & 59 \\
-MaxPooling2D & $2\times2$ & 0 \\
-SeparableConv2D & 64 filters, $3\times3$, ReLU & 2,400 \\
-MaxPooling2D & $2\times2$ & 0 \\
-SeparableConv2D & 96 filters, $3\times3$, ReLU & 6,336 \\
-GlobalAveragePooling2D & Global spatial average & 0 \\
-Dense & 64 units, ReLU & 6,208 \\
-Dense & 10 units, softmax & 650 \\
+Input & $28\times28\times1$ & 0\\
+Stem convolution & $3\times3$, 16 channels, no bias; batch normalization and ReLU & 208\\
+Max pooling & $2\times2$ & 0\\
+Depthwise-separable block 1 & Depthwise $3\times3$ (16 channels), pointwise $1\times1$ to 24 channels; batch normalization and ReLU & 688\\
+Max pooling & $2\times2$ & 0\\
+Depthwise-separable block 2 & Depthwise $3\times3$ (24 channels), pointwise $1\times1$ to 32 channels; batch normalization and ReLU & 1,208\\
+Max pooling & $2\times2$ & 0\\
+Depthwise-separable block 3 & Depthwise $3\times3$ (32 channels), pointwise $1\times1$ to 48 channels; batch normalization and ReLU & 2,144\\
+Global average pooling and dropout & Dropout rate 0.20 & 0\\
+Dense output & 10 units, softmax & 490\\
 \midrule
-Total & Trainable parameters & 15,653 \\
+Total & 4,354 trainable and 384 non-trainable parameters & 4,738\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -325,7 +327,7 @@ ReLU is used in hidden layers because $f(x)=\max(0,x)$ is computationally simple
 Model B's optimizer selection compares Adam, standard stochastic gradient descent (SGD), and SGD with Momentum. Candidates should use the same data splits, architecture, batch size and comparable training settings. Select the optimizer using validation metrics, not test-set performance.
 
 \begin{table}[H]\centering
-\caption{Optimizer comparison for Model B; fill from the optimizer comparison output.}\label{tab:optimizers}
+\caption{Optimizer comparison using the recorded validation results.}\label{tab:optimizers}
 \small
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X
@@ -333,20 +335,20 @@ Model B's optimizer selection compares Adam, standard stochastic gradient descen
 >{\centering\arraybackslash}p{3.2cm}
 >{\centering\arraybackslash}p{2.1cm}
 >{\centering\arraybackslash}p{2cm}}\toprule
-Optimizer & \shortstack{Learning\\rate} & \shortstack{Best\\validation\\accuracy (\%)} & \shortstack{Best\\validation\\loss} & \shortstack{Time\\(s/epoch)}\\\midrule
+Optimizer & \shortstack{Learning\\rate} & \shortstack{Final\\validation\\accuracy (\%)} & \shortstack{Final\\validation\\loss} & \shortstack{Time\\(s/epoch)}\\\midrule
 Adam & 0.001 & 87.09 & 0.3533 & 6.90\\
 SGD & 0.01 & 84.88 & 0.4237 & 6.87\\
 SGD with Momentum & 0.01 & 86.50 & 0.3700 & 7.31\\\bottomrule
 \end{tabularx}\end{table}
 
-SGD updates parameters using the current gradient. Momentum incorporates a contribution from previous gradients, which can smooth updates and accelerate progress in consistent directions. Adam adapts update scales using estimates of first and second gradient moments. The methods may differ in convergence speed, stability and validation performance; discuss the measured results.
+SGD updates parameters using the current gradient. Momentum incorporates a contribution from previous gradients, which can smooth updates and accelerate progress in consistent directions. Adam adapts update scales using estimates of first and second gradient moments. The methods may differ in convergence speed, stability and validation performance.
 
 \textbf{Selected optimizer and learning rate:} Adam, learning rate $10^{-3}$.\\
-\textbf{Reason for selection:} Adam achieved the highest final validation accuracy in the 20-epoch optimizer comparison (87.09\%) and lower validation loss than plain SGD. Momentum improved validation accuracy over plain SGD, but the run stopped after 11 epochs.
-\figureplaceholder{Model B optimizer comparison plot showing validation accuracy and validation loss.}{fig/model_b_optimizer.png}
+\textbf{Reason for selection:} Adam achieved the highest final validation accuracy (87.09\%) and the lowest final validation loss (0.3533) in the recorded comparison. SGD with Momentum improved validation accuracy over plain SGD (86.50\% versus 84.88\%), but that run completed only 11 epochs, so its endpoint is not directly comparable with the 20-epoch runs.
+\figureplaceholder{Optimizer comparison plot showing validation loss.}{fig/model_b_optimizer.png}
 
 \subsection{Training configuration}
-Both custom CNNs must complete at least 20 training epochs. Include the actual configuration from the executed notebooks.
+Both custom CNNs completed the required minimum of 20 epochs. The following settings are taken from the executed notebooks.
 \begin{table}[H]\centering
 \caption{Training configuration}\label{tab:training}
 \small
@@ -363,19 +365,29 @@ Completed epochs & 20 & 25\\
 Checkpointing / early stopping & Best validation checkpoint & Best validation checkpoint; LR reduction\\\bottomrule
 \end{tabularx}\end{table}
 
-For pretrained models, report the actual number of epochs completed during frozen-backbone training and fine-tuning. If early stopping is used, report completed epochs rather than only the configured maximum.
+Each pretrained model completed five epochs with the backbone frozen and five fine-tuning epochs. The timing results below are averages over these ten epochs; because notebook execution environments may differ, compare their timings cautiously.
 
 % -------------------- 5. RESULTS --------------------
 \newpage
 \section{Experimental Results}
 \subsection{Model A learning curves}
-\figureplaceholder{Model A training and validation loss across epochs.}{fig/training_curves_a.png}
+\figureplaceholder{Model A training and validation loss and accuracy across epochs.}{fig/training_curves_a.png}
 
 \subsection{Model B learning curves}
-\figureplaceholder{Model B training and validation loss across epochs.}{fig/training_curves.png}
+\figureplaceholder{Model B training and validation loss and accuracy across epochs.}{fig/training_curves_b.png}
+
+\subsection{Learning Curve Analysis}
+
+Model A shows signs of overfitting, as its training loss decreases
+while its validation loss increases in later epochs. In contrast,
+Model B maintains improving performance with a smaller gap between
+training and validation results. EfficientNetB0 also shows steady
+improvement, while MobileNetV2's validation performance begins to
+level off. Overall, Model B offers a good balance between accuracy
+and model complexity.
 
 \subsection{Test-set classification performance}
-Evaluate the final selected models on the held-out test set. Fill Table~\ref{tab:metrics} using actual outputs from the four notebooks.
+All four models were evaluated on the same held-out test set of 10,500 images. The metrics below are taken from the saved notebook outputs.
 \begin{table}[H]\centering
 \caption{Test-set classification metrics}\label{tab:metrics}
 \resizebox{\textwidth}{!}{\begin{tabular}{lrrrrr}\toprule
@@ -386,17 +398,19 @@ MobileNetV2 & 88.23 & 0.8815 & 0.8823 & 0.8815 & 0.8823\\
 EfficientNetB0 & 89.29 & 0.8921 & 0.8929 & 0.8921 & 0.8929\\\bottomrule
 \end{tabular}}\end{table}
 
-Precision measures how many predictions assigned to a class are correct; recall measures how many true examples of a class are retrieved. Weighted averages account for class support, while macro averages give each class equal weight. Report measured values rather than assuming the metrics are equal.
+Precision measures how many predictions assigned to a class are correct; recall measures how many true examples of a class are retrieved. Weighted averages account for class support, while macro averages give each class equal weight. The test split contains exactly 1,050 examples from each class, so weighted and macro precision/recall are equal (up to rounding) for these results.
 
 \subsection{Confusion matrices}
 \figureplaceholder{Model A test-set confusion matrix.}{fig/a_matrix.png}
 \figureplaceholder{Model B test-set confusion matrix.}{fig/b_matrix.png}
 \figureplaceholder{MobileNetV2 test-set confusion matrix.}{fig/mobilenetv2_matrix.png}
-\figureplaceholder{EfficientNetB0 test-set confusion matrix.}{../efficientnetb0_matrix.png}
+\figureplaceholder{EfficientNetB0 test-set confusion matrix.}{fig/efficientnetb0_matrix.png}
 
 \subsection{Pretrained model learning curves}
-\figureplaceholder{MobileNetV2 training and validation loss curves.}{fig/mobilenetv2_curves.png}
-\figureplaceholder{EfficientNetB0 training and validation loss curves.}{fig/efficientnetb0_curves.png}
+\figureplaceholder{MobileNetV2 training and validation loss curves.}{fig/training_curves_mobilenet.png}
+\figureplaceholder{MobileNetV2 training and validation accuracy curves.}{fig/training_curves_mobilenetv2.png}
+\figureplaceholder{EfficientNetB0 training and validation loss curves.}{fig/training_curves_efficientnet.png}
+\figureplaceholder{EfficientNetB0 training and validation accuracy curves.}{fig/training_curves_efficientnetb0.png}
 
 % -------------------- 6. COMPARISON --------------------
 \newpage
@@ -411,7 +425,30 @@ Average training time per epoch (s) & 17.17 & 7.52\\
 Test accuracy (\%) & 89.58 & 89.10\\\bottomrule
 \end{tabular}\end{table}
 
-Discuss whether depthwise separable convolutions reduced parameter count and saved model size, and how they affected accuracy and training time. Do not assume Model B is faster solely because it has fewer parameters: runtime depends on hardware, batch size and operation implementation.
+\noindent\textbf{Model size comparison:}
+Model A's size (757.90 KB) is measured from its saved
+\texttt{.keras} file, whereas Model B's size (18.51 KB)
+is estimated from its float32 parameter footprint.
+Therefore, these values are not directly comparable.
+For a fair comparison, both models should be saved and
+measured using the same method.
+
+Model B achieved 89.10\% test accuracy, close to Model A's
+89.58\%. However, Model B uses only 4,738 parameters,
+compared with 60,874 for Model A, reducing the parameter
+count by approximately 92.22\%.
+
+Model B also had a shorter measured training time per epoch
+(7.52 seconds compared with 17.17 seconds for Model A).
+These results show that a lightweight CNN can achieve
+competitive accuracy with far fewer parameters, making it
+a promising choice for resource-constrained devices.
+
+However, the model-size figures are not directly comparable:
+Model A's size is measured from its saved file, while Model B's
+size is an estimated parameter footprint. Therefore, further
+testing using the same measurement method is needed for a
+fair comparison.
 
 \subsection{Comparison with lightweight pretrained networks}
 \begin{table}[H]\centering
@@ -420,8 +457,8 @@ Discuss whether depthwise separable convolutions reduced parameter count and sav
 Metric & Model B & MobileNetV2 & EfficientNetB0\\\midrule
 Total parameters & 4,738 & 2,270,794 & 4,062,381\\
 Trainable parameters after fine-tuning & 4,354 & 1,207,690 & 1,355,578\\
-Saved model size (MB) & 0.018 & 8.67* & 15.51*\\
-Average training time per epoch (s) & 7.52 & 40.38 & 61.16\\
+Weight size / saved file (MB) & 0.018$^*$ & 18.447 & 26.658\\
+Average training time per epoch (s) & 7.52 & 40.39 & 61.17\\
 Test accuracy (\%) & 89.10 & 88.23 & 89.29\\
 Weighted precision & 0.8902 & 0.8815 & 0.8921\\
 Weighted recall & 0.8910 & 0.8823 & 0.8929\\
@@ -440,9 +477,9 @@ Input resolution & $28\times28\times1$ & $64\times64\times3$ & $64\times64\times
     \item \textbf{Model size:}
     Model B has only $4{,}738$ parameters, compared with
     $2{,}270{,}794$ for MobileNetV2 and $4{,}062{,}381$ for
-    EfficientNetB0. This makes Model B much more compact.
-    Actual saved model sizes should be compared using the exported
-    file sizes.
+    EfficientNetB0. Its estimated float32 weight footprint is only
+    18.51 KB. The notebook-reported saved sizes for MobileNetV2 and
+    EfficientNetB0 are 18.447 MB and 26.658 MB, respectively.
 
     \item \textbf{Effect of pretraining:}
     ImageNet pretraining did not improve accuracy over Model A.
@@ -451,10 +488,13 @@ Input resolution & $28\times28\times1$ & $64\times64\times3$ & $64\times64\times
     than Model B.
 
     \item \textbf{Training time:}
-    The model with the shortest measured training time per epoch
-    should be identified from the experimental results. Training
-    time alone does not determine inference speed or energy use,
-    which depend on the hardware and implementation.
+    Model B had the shortest measured custom-model epoch time
+    (7.52 s). MobileNetV2 and EfficientNetB0 averaged 40.39 s and
+    61.17 s per epoch in their recorded runs. The pretrained-model
+    notebooks ran in a different environment, so these timings are
+    indicative rather than a controlled hardware comparison.
+    Training time alone does not determine inference speed or energy
+    use, which depend on the hardware and implementation.
 
     \item \textbf{Model A versus Model B:}
     Model B achieved nearly the same accuracy as Model A while
@@ -471,10 +511,7 @@ Input resolution & $28\times28\times1$ & $64\times64\times3$ & $64\times64\times
 
 \end{enumerate}
 
-The experiments show that a smaller model can achieve competitive
-accuracy without requiring a large pretrained architecture. For
-reproducibility, the final report should state the experimental
-hardware, software versions, and timing method used.
+The experiments show that a smaller model can achieve competitive accuracy without requiring a large pretrained architecture. The custom-model timings were recorded by the notebooks using elapsed wall-clock time around model fitting. The CPU model and RAM were not recorded, and the pretrained notebooks ran in a separate environment; therefore, absolute timing comparisons should be treated cautiously.
 
 % -------------------- 7. LIMITATIONS --------------------
 \newpage
@@ -491,10 +528,9 @@ This assignment compared two custom CNN architectures with two pretrained image-
 Model A achieved the highest test accuracy of 89.58\%, followed by EfficientNetB0 at 89.29\%, Model B at 89.10\%, and MobileNetV2 at 88.23\%. With only 4,738 parameters, Model B achieved competitive accuracy while using far fewer parameters than the pretrained models. Overall, the results show that a carefully designed lightweight CNN can achieve comparable performance with much lower model complexity, making it a practical choice when memory and computational resources are limited.
 
 % -------------------- 9. REPRODUCIBILITY --------------------
-\newpage
 \section{Reproducibility and GitHub Repository}
 \textbf{GitHub repository:} \url{https://github.com/Saruka03/EN3150-CNN-Classification}\\
-The repository should contain the five Jupyter notebooks and a README describing dependencies, dataset preparation, execution order and required supporting files.
+The repository is available at the URL above. For reproducibility, it should include the five Jupyter notebooks, the processed dataset or instructions to recreate it, model-output assets, and a README describing dependencies and execution order.
 
 \textbf{Hardware used:} Notebook logs report no available GPU for the Model B run; CPU model and RAM were not recorded in the exported outputs.\\
 \textbf{Software versions:} TensorFlow 2.21.0 is recorded in the Model B notebook; other package versions were not consistently recorded.
