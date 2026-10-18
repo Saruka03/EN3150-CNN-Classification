@@ -392,11 +392,13 @@ Precision measures how many predictions assigned to a class are correct; recall 
 \figureplaceholder{Model A test-set confusion matrix.}{fig/a_matrix.png}
 \figureplaceholder{Model B test-set confusion matrix.}{fig/b_matrix.png}
 \figureplaceholder{MobileNetV2 test-set confusion matrix.}{fig/mobilenetv2_matrix.png}
-\figureplaceholder{EfficientNetB0 test-set confusion matrix.}{../efficientnetb0_matrix.png}
+\figureplaceholder{EfficientNetB0 test-set confusion matrix.}{fig/efficientnetb0_matrix.png}
 
 \subsection{Pretrained model learning curves}
-\figureplaceholder{MobileNetV2 training and validation loss curves.}{fig/mobilenetv2_curves.png}
-\figureplaceholder{EfficientNetB0 training and validation loss curves.}{fig/efficientnetb0_curves.png}
+\figureplaceholder{MobileNetV2 training and validation loss curves.}{fig/training_curves_mobilenet.png}
+\figureplaceholder{MobileNetV2 training and validation accuracy curves.}{fig/training_curves_mobilenetv2.png}
+\figureplaceholder{EfficientNetB0 training and validation loss curves.}{fig/training_curves_efficientnet.png}
+\figureplaceholder{EfficientNetB0 training and validation accuracy curves.}{fig/training_curves_efficientnetb0.png}
 
 % -------------------- 6. COMPARISON --------------------
 \newpage
@@ -491,7 +493,6 @@ This assignment compared two custom CNN architectures with two pretrained image-
 Model A achieved the highest test accuracy of 89.58\%, followed by EfficientNetB0 at 89.29\%, Model B at 89.10\%, and MobileNetV2 at 88.23\%. With only 4,738 parameters, Model B achieved competitive accuracy while using far fewer parameters than the pretrained models. Overall, the results show that a carefully designed lightweight CNN can achieve comparable performance with much lower model complexity, making it a practical choice when memory and computational resources are limited.
 
 % -------------------- 9. REPRODUCIBILITY --------------------
-\newpage
 \section{Reproducibility and GitHub Repository}
 \textbf{GitHub repository:} \url{https://github.com/Saruka03/EN3150-CNN-Classification}\\
 The repository should contain the five Jupyter notebooks and a README describing dependencies, dataset preparation, execution order and required supporting files.
